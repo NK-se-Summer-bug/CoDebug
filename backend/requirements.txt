@@ -2,8 +2,10 @@ fastapi
 uvicorn
 typing_extensions
 langchain
-openai 
+langchain-community
+openai
+python-dotenv
 requests
-tenacity
-pydantic
-python-multipart 
+langchain-deepseek
+langchain-core
+langchain-openai

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #fff;
+        }
+
+        /* 聊天容器 */
+        .chat-container {
+            height: 100vh;
+            max-width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+
+        /* 消息列表容器 */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+
+        /* 消息样式 */
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 头像样式 */
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            background-size: cover;
+        }
+
+        .user-avatar {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%234A90E2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>');
+        }
+
+        .ai-avatar {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%239C27B0" d="M21 10.975V8c0-1.1-.9-2-2-2h-6V4.5c0-.83-.67-1.5-1.5-1.5S10 3.67 10 4.5V6H4c-1.1 0-2 .9-2 2v2.975L9.4 12 2 13.025V16c0 1.1.9 2 2 2h6v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V18h6c1.1 0 2-.9 2-2v-2.975L14.6 12l6.4-1.025z"/></svg>');
+        }
+
+        /* 消息内容样式 */
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* 用户消息样式 */
+        .user .message-content {
+            background: #4A90E2;
+            color: white;
+            margin-left: auto;
+        }
+
+        /* AI消息样式 */
+        .ai .message-content {
+            background: #9C27B0;
+            color: white;
+        }
+
+        /* 输入区域样式 */
+        .input-container {
+            padding: 20px;
+            background: #fff;
+            border-top: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-right: 12px;
+            font-size: 14px;
+            resize: none;
+            height: 45px;
+            line-height: 20px;
+            transition: all 0.3s;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: #9C27B0;
+            box-shadow: 0 0 0 2px rgba(156, 39, 176, 0.1);
+        }
+
+        .send-button {
+            padding: 12px 24px;
+            background: #9C27B0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .send-button:hover {
+            background: #7B1FA2;
+        }
+
+        .send-button:disabled {
+            background: #E1BEE7;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="messages-container" id="messages">
+            <!-- 消息将在这里动态添加 -->
+        </div>
+        <div class="input-container">
+            <textarea
+                class="input-box"
+                id="messageInput"
+                placeholder="请输入消息..."
+                rows="1"
+                onkeydown="handleKeyDown(event)"
+            ></textarea>
+            <button class="send-button" onclick="sendMessage()" id="sendButton">发送</button>
+        </div>
+    </div>
+
+    <script>
+        // 初始化变量
+        let messageInput;
+        let sendButton;
+        let messagesContainer;
+        let lastMessageTime = 0;
+        const SEND_COOLDOWN = 1000; // 1秒冷却时间
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', () => {
+            messageInput = document.getElementById('messageInput');
+            sendButton = document.getElementById('sendButton');
+            messagesContainer = document.getElementById('messages');
+
+            // 加载初始消息
+            if (window.chatData && window.chatData.messages) {
+                window.chatData.messages.forEach(message => {
+                    appendMessage(message.role, message.content);
+                });
+                scrollToBottom();
+            }
+
+            // 设置输入框状态
+            messageInput.disabled = !window.chatData?.enabled;
+            sendButton.disabled = !window.chatData?.enabled;
+
+            // 自动调整输入框高度
+            messageInput.addEventListener('input', () => {
+                messageInput.style.height = 'auto';
+                messageInput.style.height = messageInput.scrollHeight + 'px';
+            });
+        });
+
+        // 发送消息
+        function sendMessage() {
+            const now = Date.now();
+            if (now - lastMessageTime < SEND_COOLDOWN) {
+                return; // 如果在冷却时间内，不发送消息
+            }
+            lastMessageTime = now;
+
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // 禁用输入和发送按钮
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+
+            // 添加用户消息到界面
+            appendMessage('user', message);
+            scrollToBottom();
+
+            // 清空输入框
+            messageInput.value = '';
+            messageInput.style.height = '45px';
+
+            // 通知Streamlit
+            if (window.streamlit) {
+                window.streamlit.setComponentValue(message);
+            }
+
+            // 延迟重新启用输入
+            setTimeout(() => {
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+            }, SEND_COOLDOWN);
+        }
+
+        // 处理按键事件
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // 添加消息到界面
+        function appendMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = `avatar ${role}-avatar`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = content;
+            
+            if (role === 'user') {
+                messageDiv.appendChild(messageContent);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html> 

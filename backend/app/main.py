@@ -1,31 +1,22 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from .api.endpoints import qa, kg, prompt
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(
-    title="DeepSeek AI Backend",
-    description="DeepSeek AI聊天和知识图谱后端API",
-    version="1.0.0"
-)
+app = FastAPI()
+origins = [
+    "http://localhost",
+    "http://localhost:8502",  # 假设 Streamlit 运行在 8502 端口
+]
 
-# 添加CORS中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 在生产环境中应该设置具体的域名
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # 允许所有 HTTP 方法 (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # 允许所有 HTTP 头
 )
 
-# 注册路由
+# tags用于指定路由的标签，方便在文档中进行分类
 app.include_router(qa.router, prefix="/api/qa", tags=["qa"])
 app.include_router(kg.router, prefix="/api/kg", tags=["kg"])
 app.include_router(prompt.router, prefix="/api/prompt", tags=["prompt"])
-
-@app.get("/")
-async def root():
-    return {"message": "DeepSeek AI Backend API", "status": "running"}
-
-@app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "message": "API服务正常运行"}

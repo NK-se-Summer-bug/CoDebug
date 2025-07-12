@@ -1,0 +1,649 @@
+import streamlit as st
+import requests
+import json
+import time
+import datetime
+import uuid
+from datetime import datetime
+import chardet
+import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+
+
+# 后端API地址
+BACKEND_URL = "http://localhost:8000/api"
+
+# 设置页面配置
+st.set_page_config(
+    page_title="Gridseek", 
+    layout="wide",  # 使用宽屏布局
+    initial_sidebar_state="expanded"
+)
+
+# 自定义CSS样式
+st.markdown("""
+<style>
+    /* 灰色侧边栏主题 */
+    .css-1d391kg {
+        background-color: #8B5CF6;
+    }
+    
+    /* 主内容区域样式 */
+    .main .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        max-width: 100% !important;
+    }
+    
+    /* 对话历史容器样式 */
+    .chat-container {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 10px;
+        border-left: 4px solid #8B5CF6;
+    }
+    
+    /* 用户消息样式 */
+    .user-message {
+        background-color: #e3f2fd;
+        padding: 10px 15px;
+        border-radius: 15px 15px 15px 5px;
+        margin: 5px 0;
+        border: 1px solid #bbdefb;
+    }
+    
+    /* LLM消息样式 */
+    .llm-message {
+        background-color: #f3e5f5;
+        padding: 10px 15px;
+        border-radius: 15px 15px 5px 15px;
+        margin: 5px 0;
+        border: 1px solid #e1bee7;
+    }
+    
+    /* 三元组结果样式 */
+    .triplet-result {
+        background-color: #fff3e0;
+        padding: 10px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border: 1px solid #ffcc80;
+    }
+    
+    /* 图表容器样式 */
+    .graph-container {
+        background-color: white;
+        border-radius: 10px;
+        padding: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        height: 600px;
+    }
+    
+    /* 设置对话区域的固定高度和滚动 */
+    [data-testid="column"]:first-child {
+        height: 600px;
+        overflow: hidden;
+    }
+    
+    /* 设置消息容器的样式 */
+    .stChatMessageContainer {
+        height: calc(100vh - 200px) !important;
+        overflow-y: auto !important;
+        padding-bottom: 100px;
+    }
+    
+    /* 固定输入框在底部 */
+    .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 18rem;  /* 侧边栏宽度 */
+        right: 0;
+        background: white;
+        padding: 1rem;
+        z-index: 1000;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* 调整输入框样式 */
+    .input-container .stTextInput {
+        margin-bottom: 0;
+    }
+    
+    /* 消息气泡样式 */
+    .chat-message {
+        display: flex;
+        margin: 8px 0;
+        padding: 0 20px;
+    }
+    
+    .chat-message.user {
+        justify-content: flex-end;
+    }
+    
+    .chat-message.ai {
+        justify-content: flex-start;
+    }
+    
+    .bubble-user {
+        background: #a5d6fa;
+        color: #222;
+        border-radius: 18px 6px 18px 18px;
+        padding: 12px 18px;
+        margin-right: 40px;
+        max-width: 70%;
+        position: relative;
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    .bubble-ai {
+        background: #f3e5f5;
+        color: #222;
+        border-radius: 6px 18px 18px 18px;
+        padding: 12px 18px;
+        margin-left: 40px;
+        max-width: 70%;
+        position: relative;
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    .avatar-user {
+        position: absolute;
+        right: -38px;
+        top: 0;
+        font-size: 28px;
+    }
+    
+    .avatar-ai {
+        position: absolute;
+        left: -38px;
+        top: 0;
+        font-size: 28px;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 文件路径用于保存聊天历史
+CHAT_HISTORY_FILE = "chat_history.json"
+
+# 初始化所有session_state变量
+if "history" not in st.session_state:
+    st.session_state["history"] = []  # 对话历史
+if "conversations" not in st.session_state:
+    st.session_state["conversations"] = {}  # 存储所有对话
+if "current_conversation_id" not in st.session_state:
+    st.session_state["current_conversation_id"] = None  # 当前活跃对话ID
+if "triplets" not in st.session_state:
+    st.session_state["triplets"] = None  # 三元组对象
+if "extract_index" not in st.session_state:
+    st.session_state["extract_index"] = None
+if "current_response" not in st.session_state:
+    st.session_state["current_response"] = None  # 最近一次回复
+if 'prompts' not in st.session_state:
+    st.session_state['prompts'] = [{"role": "system"}]
+if 'past' not in st.session_state:
+    st.session_state['past'] = []
+if 'generated' not in st.session_state:
+    st.session_state['generated'] = []
+if 'chat_sessions' not in st.session_state:
+    st.session_state['chat_sessions'] = {}  # 存储所有聊天会话
+if 'current_session' not in st.session_state:
+    st.session_state['current_session'] = None  # 当前会话
+
+# 加载历史对话
+def load_chat_history():
+    try:
+        with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
+            st.session_state['chat_sessions'] = json.load(f)
+    except UnicodeDecodeError:
+        try:
+            with open(CHAT_HISTORY_FILE, "rb") as f:
+                raw_data = f.read()
+                encoding = chardet.detect(raw_data)["encoding"] or "latin1"
+            with open(CHAT_HISTORY_FILE, "r", encoding=encoding) as f:
+                st.session_state['chat_sessions'] = json.load(f)
+        except Exception as e:
+            st.warning(f"无法加载聊天历史：{str(e)}，初始化为空")
+            st.session_state['chat_sessions'] = {}
+    except FileNotFoundError:
+        st.session_state['chat_sessions'] = {}
+
+# 保存历史对话到文件
+def save_chat_history():
+    try:
+        with open(CHAT_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(st.session_state['chat_sessions'], f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.error(f"保存聊天历史失败：{str(e)}")
+
+def generate_response(prompt):
+    """通过后端API获取回复"""
+    try:
+        # 准备请求数据
+        data = {
+            "question": prompt,
+            "system_prompt": st.session_state.prompts[0].get("content", "")
+        }
+        
+        # 发送POST请求到后端
+        response = requests.post(f"{BACKEND_URL}/qa", json=data)
+        
+        # 打印调试信息
+        print(f"发送请求到: {BACKEND_URL}/qa")
+        print(f"请求数据: {data}")
+        print(f"响应状态码: {response.status_code}")
+        
+        try:
+            print(f"响应内容: {response.json()}")
+        except:
+            print(f"响应文本: {response.text}")
+        
+        response.raise_for_status()  # 检查响应状态
+        
+        # 解析响应
+        result = response.json()
+        return result["answer"]
+    except requests.exceptions.RequestException as e:
+        error_msg = f"API请求错误: {str(e)}"
+        print(error_msg)  # 打印到控制台
+        st.error(error_msg)  # 显示在UI上
+        return None
+
+# 创建新会话
+def create_new_session():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session_id = f"新会话_{timestamp}"  # 默认名称
+    st.session_state['chat_sessions'][session_id] = {
+        "prompts": [{"role": "system"}],
+        "past": [],
+        "generated": []
+    }
+    st.session_state['current_session'] = session_id
+    st.session_state['prompts'] = [{"role": "system"}]
+    st.session_state['past'] = []
+    st.session_state['generated'] = []
+    save_chat_history()
+
+# 加载历史会话
+def load_session(session_id):
+    if session_id in st.session_state['chat_sessions']:
+        st.session_state['current_session'] = session_id
+        st.session_state['prompts'] = st.session_state['chat_sessions'][session_id]["prompts"]
+        st.session_state['past'] = st.session_state['chat_sessions'][session_id]["past"]
+        st.session_state['generated'] = st.session_state['chat_sessions'][session_id]["generated"]
+
+# 清空当前会话
+def clear_chat():
+    if st.session_state['current_session']:
+        st.session_state['chat_sessions'][st.session_state['current_session']] = {
+            "prompts": [{"role": "system", }],
+            "past": [],
+            "generated": []
+        }
+        load_session(st.session_state['current_session'])
+        save_chat_history()
+
+# 处理用户发送消息
+def chat_click():
+    """处理消息发送的回调函数"""
+    if "user_input_key" in st.session_state and st.session_state['current_session']:
+        user_input = st.session_state.user_input_key
+        if not user_input.strip():
+            return
+            
+        try:
+            # 先将消息添加到历史记录
+            st.session_state['past'].append(user_input)
+            
+            # 如果是第一条消息，用它来重命名会话
+            if len(st.session_state['past']) == 1:
+                old_session_id = st.session_state['current_session']
+                new_session_id = user_input[:20] + "..." if len(user_input) > 20 else user_input
+                
+                # 更新会话ID
+                st.session_state['chat_sessions'][new_session_id] = st.session_state['chat_sessions'].pop(old_session_id)
+                st.session_state['current_session'] = new_session_id
+            
+            # 获取AI回复
+            output = generate_response(user_input)
+            if output:
+                st.session_state['generated'].append(output)
+                st.session_state['prompts'].append({"role": "assistant", "content": output})
+                
+                # 更新当前会话的存储
+                st.session_state['chat_sessions'][st.session_state['current_session']] = {
+                    "prompts": st.session_state['prompts'],
+                    "past": st.session_state['past'],
+                    "generated": st.session_state['generated']
+                }
+                
+                # 保存聊天历史
+                save_chat_history()
+                print("Message processed successfully")
+            else:
+                print("Warning: Empty response from AI")
+                st.error("未能获取到AI的回复，请重试")
+            
+            # 清空输入框
+            st.session_state.user_input_key = ""
+            
+        except Exception as e:
+            print(f"Error processing message: {str(e)}")
+            st.error(f"处理消息时出错: {str(e)}")
+
+# 初始化加载历史记录
+load_chat_history()
+
+st.title("Gridseek")
+
+# 侧边栏设置
+with st.sidebar:
+    st.markdown("### 🎛️ 系统设置")
+    try:
+        prompt_resp = requests.get(f"{BACKEND_URL}/prompt/")
+        default_prompt = prompt_resp.json().get("system_prompt", "你是一个智能问答助手,能够使用建简炼有效的语言解决相关的问题")
+    except:
+        default_prompt = "你是一个智能问答助手,能够使用建简炼有效的语言解决相关的问题"
+    
+    system_prompt = st.text_area("系统 Prompt", value=default_prompt, height=120)
+    
+    if st.button("🔄 更新 Prompt"):
+        try:
+            resp = requests.post(f"{BACKEND_URL}/prompt/", json={"prompt": system_prompt})
+            if resp.ok:
+                st.success("✅ 系统 Prompt 已更新！")
+            else:
+                st.error("❌ 更新失败")
+        except Exception as e:
+            st.error(f"❌ 更新失败: {str(e)}")
+    
+    st.markdown("---")
+    st.markdown("### 📊 聊天历史")
+    
+    if st.button("新建会话"):
+        create_new_session()
+    
+    # 显示所有会话标题
+    for session_id in st.session_state['chat_sessions']:
+        if st.button(session_id, key=f"session_{session_id}"):
+                          load_session(session_id)
+
+
+# 更新CSS样式，确保消息容器固定高度并正确滚动
+st.markdown("""
+<style>
+    /* 主内容区域样式 */
+    .main .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        max-width: 100% !important;
+    }
+
+    /* 左侧聊天区域整体容器 */
+    .chat-area-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 100px) !important;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    /* 聊天标题样式 */
+    .chat-title {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e8eaed;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+    
+    /* 消息容器 - 固定高度并添加滚动条 */
+    .message-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+    }
+
+    /* 滚动条样式 */
+    .message-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .message-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .message-container::-webkit-scrollbar-thumb {
+        background: #c5c5c5;
+        border-radius: 4px;
+    }
+    
+    .message-container::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    /* 输入区域容器 */
+    .input-container {
+        padding: 15px;
+        background: #f8f9fa;
+        border-top: 1px solid #e8eaed;
+    }
+
+    /* 消息气泡样式 */
+    .chat-message {
+        margin: 8px 0;
+    }
+
+    .chat-message.user {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .chat-message.ai {
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .bubble-user {
+        background: #a5d6fa;
+        color: #222;
+        border-radius: 18px 6px 18px 18px;
+        padding: 12px 18px;
+        margin-right: 40px;
+        max-width: 70%;
+        position: relative;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .bubble-ai {
+        background: #f3e5f5;
+        color: #222;
+        border-radius: 6px 18px 18px 18px;
+        padding: 12px 18px;
+        margin-left: 40px;
+        max-width: 70%;
+        position: relative;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .avatar-user {
+        position: absolute;
+        right: -38px;
+        top: 0;
+        font-size: 28px;
+    }
+
+    .avatar-ai {
+        position: absolute;
+        left: -38px;
+        top: 0;
+        font-size: 28px;
+    }
+
+    /* 图表容器样式 */
+    .graph-container {
+        height: calc(100vh - 100px) !important;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 创建左右分栏 - 调整比例
+left_col, right_col = st.columns([5, 5])  # 5:5的比例
+
+# 左侧栏 - 聊天区域
+with left_col:
+    # 创建整体聊天区域容器
+    st.markdown('<div class="chat-area-container">', unsafe_allow_html=True)
+    
+    # 聊天标题
+    if st.session_state['current_session']:
+        st.markdown(f'<div class="chat-title">当前会话：{st.session_state["current_session"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="chat-title">请在侧边栏新建或选择一个会话</div>', unsafe_allow_html=True)
+    
+    # 创建消息容器 - 固定高度并支持滚动
+    st.markdown('<div class="message-container">', unsafe_allow_html=True)
+    
+    # 显示聊天记录
+    if st.session_state['current_session']:
+        for i in range(len(st.session_state['past'])):
+            # 显示用户消息
+            st.markdown(
+                f"""
+                <div class="chat-message user">
+                    <div class="bubble-user">
+                        {st.session_state['past'][i]}
+                        <span class="avatar-user">👤</span>
+                    </div>
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
+            
+            # 显示AI回复（如果存在）
+            if i < len(st.session_state['generated']):
+                st.markdown(
+                    f"""
+                    <div class="chat-message ai">
+                        <div class="bubble-ai">
+                            {st.session_state['generated'][i]}
+                            <span class="avatar-ai">🤖</span>
+                        </div>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # 结束消息容器
+    
+    # 输入区域
+    st.markdown('<div class="input-container">', unsafe_allow_html=True)
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        user_input = st.text_input("", 
+                                placeholder="请输入你的问题...", 
+                                label_visibility="collapsed",
+                                key="user_input_key",
+                                on_change=chat_click,
+                                disabled=not st.session_state['current_session'])
+    with col2:
+        if st.button("发送", 
+                use_container_width=True,
+                disabled=not st.session_state['current_session']):
+            chat_click()
+    st.markdown('</div>', unsafe_allow_html=True)  # 结束输入容器
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # 结束整体聊天区域容器
+
+# 右侧栏 - 知识图谱展示区域
+with right_col:
+    st.markdown("### 知识图谱")
+    # 使用iframe嵌入graph.html
+    with open("graph.html", "r", encoding="utf-8") as f:
+        graph_html = f.read()
+    
+    # 使用components.html嵌入
+    st.components.v1.html(
+        f"""
+        <div class="graph-container">
+            {graph_html}
+        </div>
+        """, 
+        height=650
+    )
+
+
+# 清空会话按钮
+st.button(
+    "清空当前会话",
+    on_click=clear_chat,
+    disabled=not st.session_state.current_session
+)
+
+def on_send_message():
+    """处理消息发送的回调函数"""
+    if st.session_state.user_input and st.session_state.current_session:
+        user_input = st.session_state.user_input
+        
+        try:
+            print("开始处理新消息...")
+            print(f"用户输入: {user_input}")
+            print(f"当前会话状态 - past: {st.session_state.past}")
+            print(f"当前会话状态 - generated: {st.session_state.generated}")
+            
+            # 添加用户消息到历史记录
+            st.session_state.past.append(user_input)
+            
+            # 获取AI回复
+            output = generate_response(user_input)
+            print(f"AI回复: {output}")
+            
+            if output:
+                # 更新会话状态
+                st.session_state.generated.append(output)
+                st.session_state.prompts.append({"role": "assistant", "content": output})
+                
+                # 更新当前会话的存储
+                st.session_state.chat_sessions[st.session_state.current_session] = {
+                    "prompts": st.session_state.prompts,
+                    "past": st.session_state.past,
+                    "generated": st.session_state.generated
+                }
+                
+                # 保存聊天历史
+                save_chat_history()
+                print("消息处理完成，已更新会话状态")
+            else:
+                print("警告：AI回复为空")
+                st.error("未能获取到AI的回复，请重试")
+            
+        except Exception as e:
+            print(f"处理消息时出错: {str(e)}")
+            st.error(f"处理消息时出错: {str(e)}")
+        
+        # 清空输入框
+        st.session_state.user_input = ""
+        
+        # 强制重新渲染
+        st.rerun() 
