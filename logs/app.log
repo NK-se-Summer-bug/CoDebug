@@ -1,0 +1,185 @@
+2025-07-12 16:58:11,724 - llm_agent_platform - INFO - llm_conversation_history.py:35 - 为会话 test_session_1752310662_deepseek-chat 创建 LLM 对话历史
+2025-07-12 16:58:11,724 - llm_agent_platform - INFO - llm_manager.py:59 - 创建 LLM 实例: test_session_1752310662_deepseek-chat (模型: deepseek-chat)
+2025-07-12 16:58:11,740 - llm_agent_platform - INFO - llm_manager.py:336 - 成功创建 LLM 实例: test_session_1752310662_deepseek-chat
+2025-07-12 16:58:11,740 - llm_agent_platform - INFO - prompt_manager.py:121 - 自定义提示词文件不存在，将创建默认文件。
+2025-07-12 16:58:11,742 - llm_agent_platform - INFO - prompt_manager.py:141 - 提示词已保存到文件: prompts/system_prompts.json
+2025-07-12 16:58:11,742 - llm_agent_platform - INFO - prompt_manager.py:150 - 已设置默认系统提示词。
+2025-07-12 16:58:11,742 - llm_agent_platform - INFO - prompt_manager.py:47 - 提示词管理器初始化完成。
+2025-07-12 16:58:11,742 - llm_agent_platform - INFO - prompt_manager.py:289 - 成功设置当前系统提示词: default
+2025-07-12 16:58:12,443 - llm_agent_platform - INFO - llm_manager.py:296 - 成功创建基础 LLM 实例: deepseek-chat (temperature: 0.7, streaming: False)
+2025-07-12 16:58:13,819 - llm_agent_platform - ERROR - llm_manager.py:96 - 实例对话失败: Connection error.
+Traceback (most recent call last):
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpcore\_sync\connection_pool.py", line 207, in handle_request
+    raise UnsupportedProtocol(
+httpcore.UnsupportedProtocol: Request URL is missing an 'http://' or 'https://' protocol.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_base_client.py", line 972, in request
+    response = self._client.send(
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 914, in send
+    response = self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 249, in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.UnsupportedProtocol: Request URL is missing an 'http://' or 'https://' protocol.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\cly\Desktop\CoDebug_from_Git\CoDebug\backend\core\llm\llm_manager.py", line 85, in chat
+    response = llm.invoke(messages)
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 378, in invoke
+    self.generate_prompt(
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 963, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 782, in generate
+    self._generate_with_cache(
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1028, in _generate_with_cache
+    result = self._generate(
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_deepseek\chat_models.py", line 296, in _generate
+    return super()._generate(
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_openai\chat_models\base.py", line 1130, in _generate
+    response = self.client.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_utils\_utils.py", line 287, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\resources\chat\completions\completions.py", line 1087, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_base_client.py", line 1249, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_base_client.py", line 1004, in request
+    raise APIConnectionError(request=request) from err
+openai.APIConnectionError: Connection error.
+2025-07-12 16:58:13,877 - llm_agent_platform - ERROR - llm.py:209 - LLM对话失败: 实例对话失败: Connection error.
+2025-07-12 17:00:27,363 - llm_agent_platform - INFO - llm_conversation_history.py:85 - 已清除 LLM 会话 test_session_1752310662_deepseek-chat 的历史记录
+2025-07-12 17:00:27,365 - llm_agent_platform - INFO - llm_manager.py:153 - 实例 test_session_1752310662_deepseek-chat 清除对话历史
+2025-07-12 17:04:40,290 - llm_agent_platform - INFO - prompt_manager.py:289 - 成功设置当前系统提示词: default
+2025-07-12 17:04:41,731 - llm_agent_platform - ERROR - llm_manager.py:96 - 实例对话失败: Connection error.
+Traceback (most recent call last):
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpcore\_sync\connection_pool.py", line 207, in handle_request
+    raise UnsupportedProtocol(
+httpcore.UnsupportedProtocol: Request URL is missing an 'http://' or 'https://' protocol.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_base_client.py", line 972, in request
+    response = self._client.send(
+               ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 914, in send
+    response = self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 249, in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.UnsupportedProtocol: Request URL is missing an 'http://' or 'https://' protocol.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\cly\Desktop\CoDebug_from_Git\CoDebug\backend\core\llm\llm_manager.py", line 85, in chat
+    response = llm.invoke(messages)
+               ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 378, in invoke
+    self.generate_prompt(
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 963, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 782, in generate
+    self._generate_with_cache(
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1028, in _generate_with_cache
+    result = self._generate(
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_deepseek\chat_models.py", line 296, in _generate
+    return super()._generate(
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\anaconda3\envs\conda_llm_py312\Lib\site-packages\langchain_openai\chat_models\base.py", line 1130, in _generate
+    response = self.client.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_utils\_utils.py", line 287, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\resources\chat\completions\completions.py", line 1087, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_base_client.py", line 1249, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cly\AppData\Roaming\Python\Python312\site-packages\openai\_base_client.py", line 1004, in request
+    raise APIConnectionError(request=request) from err
+openai.APIConnectionError: Connection error.
+2025-07-12 17:04:41,735 - llm_agent_platform - ERROR - llm.py:209 - LLM对话失败: 实例对话失败: Connection error.
+2025-07-12 17:11:34,819 - llm_agent_platform - INFO - llm_conversation_history.py:35 - 为会话 test_session_1752311480_deepseek-chat 创建 LLM 对话历史
+2025-07-12 17:11:34,819 - llm_agent_platform - INFO - llm_manager.py:59 - 创建 LLM 实例: test_session_1752311480_deepseek-chat (模型: deepseek-chat)
+2025-07-12 17:11:34,821 - llm_agent_platform - INFO - llm_manager.py:336 - 成功创建 LLM 实例: test_session_1752311480_deepseek-chat
+2025-07-12 17:11:34,822 - llm_agent_platform - INFO - prompt_manager.py:119 - 从文件加载了 3 个自定义提示词。
+2025-07-12 17:11:34,822 - llm_agent_platform - INFO - prompt_manager.py:150 - 已设置默认系统提示词。
+2025-07-12 17:11:34,822 - llm_agent_platform - INFO - prompt_manager.py:47 - 提示词管理器初始化完成。
+2025-07-12 17:11:34,822 - llm_agent_platform - INFO - prompt_manager.py:289 - 成功设置当前系统提示词: default
+2025-07-12 17:11:35,223 - llm_agent_platform - INFO - llm_manager.py:296 - 成功创建基础 LLM 实例: deepseek-chat (temperature: 0.7, streaming: False)
+2025-07-12 17:11:46,290 - llm_agent_platform - INFO - llm_manager.py:92 - 实例 test_session_1752311480_deepseek-chat 完成对话
+2025-07-12 17:12:14,744 - llm_agent_platform - INFO - prompt_manager.py:289 - 成功设置当前系统提示词: default
+2025-07-12 17:12:21,643 - llm_agent_platform - INFO - llm_manager.py:92 - 实例 test_session_1752311480_deepseek-chat 完成对话
+2025-07-12 17:13:14,838 - llm_agent_platform - INFO - llm_conversation_history.py:35 - 为会话 test_session_1752311480_glm-4-air 创建 LLM 对话历史
+2025-07-12 17:13:14,840 - llm_agent_platform - INFO - llm_manager.py:59 - 创建 LLM 实例: test_session_1752311480_glm-4-air (模型: glm-4-air)
+2025-07-12 17:13:14,840 - llm_agent_platform - INFO - llm_manager.py:336 - 成功创建 LLM 实例: test_session_1752311480_glm-4-air
+2025-07-12 17:13:14,841 - llm_agent_platform - INFO - llm_conversation_history.py:35 - 为会话 test_session_1752311480_glm-4-air 创建 LLM 对话历史
+2025-07-12 17:13:14,841 - llm_agent_platform - INFO - llm_manager.py:178 - 实例 test_session_1752311480_glm-4-air 从 test_session_1752311480_deepseek-chat 复制记忆
+2025-07-12 17:13:14,841 - llm_agent_platform - INFO - llm.py:185 - 已将记忆从 test_session_1752311480_deepseek-chat 转移到 test_session_1752311480_glm-4-air
+2025-07-12 17:13:14,841 - llm_agent_platform - INFO - prompt_manager.py:289 - 成功设置当前系统提示词: default
+2025-07-12 17:13:14,842 - llm_agent_platform - INFO - llm_manager.py:296 - 成功创建基础 LLM 实例: glm-4-air (temperature: 0.7, streaming: False)
+2025-07-12 17:13:15,957 - llm_agent_platform - INFO - llm_manager.py:92 - 实例 test_session_1752311480_glm-4-air 完成对话
+2025-07-12 18:29:23,677 - llm_agent_platform - INFO - prompt_manager.py:119 - 从文件加载了 3 个自定义提示词。
+2025-07-12 18:29:23,678 - llm_agent_platform - INFO - prompt_manager.py:150 - 已设置默认系统提示词。
+2025-07-12 18:29:23,678 - llm_agent_platform - INFO - prompt_manager.py:47 - 提示词管理器初始化完成。
+2025-07-12 18:31:43,299 - llm_agent_platform - WARNING - prompt_manager.py:207 - 提示词 'current' 不存在，更新失败。
+2025-07-12 18:31:43,300 - llm_agent_platform - INFO - prompt_manager.py:141 - 提示词已保存到文件: prompts/system_prompts.json
+2025-07-12 18:31:43,305 - llm_agent_platform - INFO - prompt_manager.py:182 - 成功创建系统提示词: current
+2025-07-12 18:31:43,305 - llm_agent_platform - INFO - prompt_manager.py:289 - 成功设置当前系统提示词: current
