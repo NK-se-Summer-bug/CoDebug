@@ -5,7 +5,4 @@ langchain
 langchain-community
 openai
 python-dotenv
-requests
-langchain-deepseek
-langchain-core
-langchain-openai
+requests 
