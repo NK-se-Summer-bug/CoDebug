@@ -1,6 +1,14 @@
+# main.py
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,  # 输出所有 DEBUG 及以上等级的日志
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 from fastapi import FastAPI
-from backend.api.routers import prompt, qa, kg
+from backend.api.routers import prompt, qa, kg, llm, agent
 from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI()
 origins = [
@@ -20,3 +28,5 @@ app.add_middleware(
 app.include_router(qa.router, prefix="/api/qa", tags=["qa"])
 app.include_router(kg.router, prefix="/api/kg", tags=["kg"])
 app.include_router(prompt.router, prefix="/api/prompt", tags=["prompt"])
+app.include_router(agent.router, prefix="/api/agent", tags=["agent"])
+app.include_router(llm.router, tags=["LLM Core"]) # 添加这一行，不加prefix

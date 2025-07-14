@@ -2,7 +2,7 @@
 # @last_update: 2025-07-12 02:10:44 UTC
 # @version: simplified_single_conversation_per_instance
 
-from typing import Dict, Any, Optional, List, Generator, Union, Callable
+from typing import Dict, Any, Optional, List, Generator, Union, Callable, AsyncGenerator
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_core.callbacks import BaseCallbackHandler
@@ -96,9 +96,10 @@ class LLMInstance:
             logger.error(f"实例对话失败: {e}", exc_info=True)
             raise RuntimeError(f"实例对话失败: {e}")
 
-    def chat_stream(self, user_message: str, system_prompt_name: str = "default") -> Generator[str, None, str]:
+    # 位于您的 LLM 实例类中
+    async def chat_stream(self, user_message: str, system_prompt_name: str = "default") -> AsyncGenerator[str, None]:
         """
-        进行流式对话
+        进行流式对话 (异步版本)
 
         Args:
             user_message: 用户消息
@@ -106,9 +107,6 @@ class LLMInstance:
 
         Yields:
             str: 每个内容块
-
-        Returns:
-            str: 完整的回复内容
         """
         try:
             # 更新系统消息
@@ -123,20 +121,25 @@ class LLMInstance:
             llm = LLMManager.get_llm(self.model_name, self.temperature, streaming=True)
             messages = self.conversation.get_messages()
 
+            # 创建一个列表来收集所有数据块
+            full_content_parts = []
+
             # 流式调用
-            full_content = ""
-            for chunk in llm.stream(messages):
+            async for chunk in llm.astream(messages):
                 if hasattr(chunk, 'content') and chunk.content:
                     content_piece = chunk.content
-                    full_content += content_piece
-                    yield content_piece
+                    if isinstance(content_piece, str):
+                        full_content_parts.append(content_piece)
+                        yield content_piece
 
-            # 添加完整回复
+            # 在循环结束后，将收集到的数据块拼接成完整消息
+            full_content = "".join(full_content_parts)
+
+            # 添加完整回复到对话历史
             self.conversation.add_ai_message(full_content)
             self.updated_at = datetime.now()
 
-            logger.info(f"实例 {self.instance_id} 完成流式对话")
-            return full_content
+            logger.info(f"实例 {self.instance_id} 完成流式对话，共计 {len(full_content)} 字符")
 
         except Exception as e:
             logger.error(f"实例流式对话失败: {e}", exc_info=True)
@@ -554,21 +557,71 @@ class LLMManager:
         return instance.chat(user_message, system_prompt_name)
 
     @classmethod
-    def quick_chat_stream(cls,
-                          instance_id: str,
-                          user_message: str,
-                          model_name: str = "deepseek-chat",
-                          system_prompt_name: str = "default",
-                          create_if_not_exists: bool = True) -> Generator[str, None, str]:
+    async def quick_chat_stream(cls,
+                        instance_id: str,
+                        user_message: str,
+                        model_name: str = "deepseek-chat",
+                        system_prompt_name: str = "default",
+                        create_if_not_exists: bool = True) -> AsyncGenerator[str, None]:
         """
-        快速流式对话方法
+        快速流式对话 (异步版本)
+
+        Args:
+            instance_id: 实例ID
+            user_message: 用户消息
+            model_name: 模型名称
+            system_prompt_name: 系统提示词名称
+            create_if_not_exists: 如果实例不存在是否创建
+
+        Yields:
+            str: 每个内容块
         """
-        instance = cls.get_instance(instance_id)
+        try:
+            # 获取或创建实例
+            instance = cls.get_instance(instance_id)
+            if not instance and create_if_not_exists:
+                instance = cls.create_instance(
+                    instance_id=instance_id,
+                    model_name=model_name
+                )
+            elif not instance:
+                raise ValueError(f"实例不存在: {instance_id}")
 
-        if not instance:
-            if create_if_not_exists:
-                instance = cls.create_instance(instance_id, model_name)
-            else:
-                raise ValueError(f"实例 {instance_id} 不存在")
+            # 使用实例进行流式对话
+            async for chunk in instance.chat_stream(user_message, system_prompt_name):
+                yield chunk
 
-        return instance.chat_stream(user_message, system_prompt_name)
+        except Exception as e:
+            logger.error(f"快速流式对话失败: {e}", exc_info=True)
+            raise RuntimeError(f"快速流式对话失败: {e}")
+
+
+
+import asyncio
+
+async def main():
+    instance_id = "debug-stream"
+    model_name = "deepseek-chat"
+    user_message = "你好，请给我一个50字的科幻故事。"
+
+    # # 确保实例存在
+    # instance = LLMManager.get_instance(instance_id)
+    # if not instance:
+    #     instance = LLMManager.create_instance(instance_id=instance_id, model_name=model_name)
+    #
+    # print(">>> 开始流式输出：")
+    # async for chunk in instance.chat_stream(user_message):
+    #     print(chunk, end="", flush=True)  # 模拟流式输出
+    print(">>> quick_chat_stream 流式输出测试：")
+    async for chunk in LLMManager.quick_chat_stream(
+            instance_id=instance_id,
+            user_message=user_message,
+            model_name=model_name,
+            system_prompt_name="default",
+            create_if_not_exists=True
+    ):
+        print(chunk, end="", flush=True)  # 模拟前端实时显示
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

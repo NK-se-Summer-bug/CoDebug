@@ -12,8 +12,8 @@ class Settings:
     DEEPSEEK_TEMPERATURE = float(os.getenv("DEEPSEEK_TEMPERATURE", 0.7))
 
     SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
-    TAVILY_API_KEY=""
-    OPENWEATHERMAP_API_KEY=""
+    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+    OPENWEATHERMAP_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY")
     # 定义可用的 LLM 模型及其描述
     AVAILABLE_LLMS = {
         "gpt-4o-mini": {

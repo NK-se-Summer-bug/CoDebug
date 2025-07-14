@@ -7,6 +7,9 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from backend.core.llm.llm_manager import LLMManager
 from backend.utils.logger import logger
+from fastapi import Response
+from fastapi.responses import StreamingResponse
+import json
 
 router = APIRouter()
 
@@ -137,82 +140,95 @@ def _create_instance_id(session_id: str, model_name: str) -> str:
     return f"{session_id}_{model_name}"
 
 
-@router.post("/qa/chat", response_model=ChatResponse)
+import logging
+
+@router.post("/qa/chat")
 async def chat_with_llm(request: ChatRequest):
-    """与LLM进行带记忆的对话，支持自动模型切换和记忆转移"""
-    try:
-        # 验证模型是否可用
-        available_models = LLMManager.get_available_models()
-        if request.model_name not in available_models:
-            return ChatResponse(
-                response_message="",
-                model_name=request.model_name,
-                status="error",
-                error=f"Invalid model_name: {request.model_name}"
-            )
+    async def event_generator():
+        try:
+            # 验证模型是否可用
+            available_models = LLMManager.get_available_models()
+            if request.model_name not in available_models:
+                yield f"data: {json.dumps({'error': f'Invalid model_name: {request.model_name or 'None'}'})}\n\n"
+                return
 
-        # 构造目标实例ID
-        target_instance_id = _create_instance_id(request.session_id, request.model_name)
+            # 构造目标实例ID
+            target_instance_id = _create_instance_id(request.session_id, request.model_name)
 
-        # 获取当前活跃的实例
-        current_active_instance_id = _get_active_instance_for_session(request.session_id)
-        current_instance = LLMManager.get_instance(current_active_instance_id) if current_active_instance_id else None
+            # 获取当前活跃的实例
+            current_active_instance_id = _get_active_instance_for_session(request.session_id)
+            current_instance = LLMManager.get_instance(current_active_instance_id) if current_active_instance_id else None
 
-        # 检查是否需要切换模型
-        model_switched = False
-        previous_model = None
+            # 发送开始标记
+            yield f"data: {json.dumps({'type': 'start'})}\n\n"
 
-        if current_instance and current_instance.model_name != request.model_name:
-            # 需要切换模型
-            model_switched = True
-            previous_model = current_instance.model_name
+            if current_instance and current_instance.model_name != request.model_name:
+                # 发送模型切换通知
+                previous_model = current_instance.model_name
+                yield f"data: {json.dumps({'type': 'model_switch', 'from': previous_model, 'to': request.model_name})}\n\n"
 
-            # 获取或创建目标实例
-            target_instance = LLMManager.get_instance(target_instance_id)
-            if not target_instance:
-                # 创建新实例
-                target_instance = LLMManager.create_instance(
-                    instance_id=target_instance_id,
-                    model_name=request.model_name,
-                    temperature=request.temperature,
-                    max_messages=request.max_messages,
-                    max_tokens=request.max_tokens
-                )
+                target_instance = LLMManager.get_instance(target_instance_id)
+                if not target_instance:
+                    target_instance = LLMManager.create_instance(
+                        instance_id=target_instance_id,
+                        model_name=request.model_name,
+                        temperature=request.temperature if request.temperature is not None else 0.7,
+                        max_messages=request.max_messages if request.max_messages is not None else 50,
+                        max_tokens=request.max_tokens if request.max_tokens is not None else 4000
+                    )
+                if current_instance:
+                    target_instance.copy_memory_from(current_instance)
 
-            # 转移记忆
-            if current_instance:
-                target_instance.copy_memory_from(current_instance)
-                logger.info(f"已将记忆从 {current_active_instance_id} 转移到 {target_instance_id}")
+                try:
+                    async for chunk in target_instance.chat_stream(
+                        request.user_message,
+                        request.system_prompt_name or "default"
+                    ):
+                        if chunk and isinstance(chunk, str):
+                            # 打印调试，确认chunk类型和值
+                            logging.debug(f"chunk (type={type(chunk)}): {repr(chunk)}")
+                            data_json = json.dumps({"type": "content", "content": chunk})
+                            yield f"data: {data_json}\n\n"
+                except Exception as e:
+                    logging.error(f"流式对话出错: {e}")
+                    yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-            # 使用新实例进行对话
-            response = target_instance.chat(request.user_message, request.system_prompt_name)
+            else:
+                try:
+                    async for chunk in LLMManager.quick_chat_stream(
+                        instance_id=target_instance_id,
+                        user_message=request.user_message,
+                        model_name=request.model_name,
+                        system_prompt_name=request.system_prompt_name or "default",
+                        create_if_not_exists=True
+                    ):
+                        if chunk and isinstance(chunk, str):
+                            logging.debug(f"quick chunk (type={type(chunk)}): {repr(chunk)}")
+                            data_json = json.dumps({"type": "content", "content": chunk})
+                            yield f"data: {data_json}\n\n"
+                except Exception as e:
+                    logging.error(f"快速流式对话出错: {e}")
+                    yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-        else:
-            # 不需要切换模型，使用快速对话方法
-            response = LLMManager.quick_chat(
-                instance_id=target_instance_id,
-                user_message=request.user_message,
-                model_name=request.model_name,
-                system_prompt_name=request.system_prompt_name,
-                create_if_not_exists=True
-            )
+            yield f"data: {json.dumps({'type': 'end'})}\n\n"
 
-        return ChatResponse(
-            response_message=response,
-            model_name=request.model_name,
-            status="success",
-            previous_model=previous_model,
-            model_switched=model_switched
-        )
+        except Exception as e:
+            logging.error(f"LLM对话失败: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-    except Exception as e:
-        logger.error(f"LLM对话失败: {e}")
-        return ChatResponse(
-            response_message="",
-            model_name=request.model_name,
-            status="error",
-            error=f"Failed to get answer from LLM: {str(e)}"
-        )
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "X-Accel-Buffering": "no"  # 禁用Nginx缓冲
+        }
+    )
+
+
+
 
 '''
 @router.post("/qa/switch-model", response_model=ModelSwitchResponse)
