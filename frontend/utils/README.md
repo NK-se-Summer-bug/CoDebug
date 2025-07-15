@@ -69,13 +69,6 @@ from utils.helpers import SessionManager, GraphUtils, StateManager
 from utils.helpers import extract_and_store_triplets
 ```
 
-## 优势
-
-1. **模块化**: 每个模块专注于特定功能
-2. **可维护性**: 代码更容易理解和修改
-3. **可扩展性**: 新功能可以轻松添加到相应模块
-4. **向后兼容**: 原有代码无需修改
-5. **清晰的职责分离**: 会话、图谱、状态、三元组各司其职
 
 ## 注意事项
 
