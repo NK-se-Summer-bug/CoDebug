@@ -1,2 +1,3 @@
 backend/.env__pycache__/
 *.pyc
+logs/
